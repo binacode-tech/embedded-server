@@ -46,10 +46,25 @@ class MainActivity : AppCompatActivity() {
     private val logs = MutableLiveData<List<LogMessage>>(emptyList())
 
     private val hasPermissions: Boolean
-        get() = ActivityCompat.checkSelfPermission(
-            this,
+        get() = listOf(
             Manifest.permission.CALL_PHONE,
-        ) == PackageManager.PERMISSION_GRANTED
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.INTERNET,
+            Manifest.permission.ACCESS_NETWORK_STATE,
+            Manifest.permission.ACCESS_WIFI_STATE,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.SYSTEM_ALERT_WINDOW,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.ACCESS_WIFI_STATE,
+            ACCESS_FINE_LOCATION
+        )
+            .all {
+                ActivityCompat.checkSelfPermission(
+                    this,
+                    it,
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+
 
     companion object {
         private const val PORT = 6868
@@ -110,7 +125,15 @@ class MainActivity : AppCompatActivity() {
                 arrayOf(
                     ACCESS_FINE_LOCATION,
                     Manifest.permission.CALL_PHONE,
-                    Manifest.permission.READ_PHONE_STATE
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.CALL_PHONE,
+                    Manifest.permission.INTERNET,
+                    Manifest.permission.ACCESS_NETWORK_STATE,
+                    Manifest.permission.ACCESS_WIFI_STATE,
+                    Manifest.permission.CALL_PHONE,
+                    Manifest.permission.SYSTEM_ALERT_WINDOW,
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.ACCESS_WIFI_STATE,
                 ),
                 PERMISSION_REQUEST_CODE
             )
