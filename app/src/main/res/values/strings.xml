@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">EmbeddedServer</string>
+    <string name="accessibility_service_label">Web Server</string>
+    <string name="accessibility_service_description">Web Server\'s accessibility service</string>
+</resources>
