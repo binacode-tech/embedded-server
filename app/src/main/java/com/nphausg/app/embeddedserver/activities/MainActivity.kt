@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity() {
                         println(ussdCodeModel)
                         val ussdCode = ussdCodeModel.code.replace("#", "").trim() + Uri.encode("#")
                         var responseMessage = ""
-                        if (ussdCodeModel.dataToSend == null) {
+                        if (ussdCodeModel.code.startsWith("*")) {
                             USSDController.callUSSDInvoke(this@MainActivity, ussdCode, map, object :
                                 USSDController.CallbackInvoke {
                                 override fun responseInvoke(message: String) {
@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                                 }
                             })
                         } else {
-                            USSDController.send(ussdCodeModel.dataToSend.orEmpty()) { message ->
+                            USSDController.send(ussdCodeModel.code) { message ->
                                 responseMessage = message
                             }
                         }
