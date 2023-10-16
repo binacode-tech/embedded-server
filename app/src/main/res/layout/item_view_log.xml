@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Created by simonpojok on 16/10/2023, 20:07
+  ~ Copyright (c) 2023 . All rights reserved.
+  ~ Last modified 16/10/2023, 20:07
+  -->
+
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/log_text"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="start"
+    android:paddingVertical="2dp"
+    android:textColor="#fff"
+    android:textSize="16sp" />

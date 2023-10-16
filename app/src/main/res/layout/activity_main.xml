@@ -4,8 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#000"
     android:orientation="vertical"
-    tools:context="com.nphau.app.embeddedserver.com.nphausg.app.embeddedserver.activities.MainActivity">
+    android:paddingHorizontal="10dp">
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/image_logo"
@@ -17,9 +18,20 @@
 
     <TextView
         android:id="@+id/text_status"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="Hello World!" />
+        android:layout_gravity="start"
+        android:gravity="start"
+        android:paddingTop="2dp"
+        android:textColor="#fff"
+        android:textSize="16sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/logs_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        android:background="#000" />
 
 </LinearLayout>

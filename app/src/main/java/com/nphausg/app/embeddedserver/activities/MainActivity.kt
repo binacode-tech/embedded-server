@@ -10,22 +10,18 @@ import android.Manifest
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.Message
-import android.telephony.TelephonyManager
-import android.util.Log
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.MutableLiveData
+import androidx.recyclerview.widget.RecyclerView
 import com.nphausg.app.embeddedserver.R
 import com.nphausg.app.embeddedserver.data.models.UssdCodeModel
 import com.nphausg.app.embeddedserver.extensions.animateFlash
-import com.romellfudi.ussdlibrary.USSDController
 import com.romellfudi.ussdlibrary.callPhoneNumber
-import com.romellfudi.ussdlibrary.callSection
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -39,7 +35,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 
@@ -47,26 +43,13 @@ private const val PERMISSION_REQUEST_CODE = 102
 
 
 class MainActivity : AppCompatActivity() {
-    private val telephonyManager by lazy { getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager }
-    private val map = HashMap<String, List<String>>().apply {
-        put("KEY_LOGIN", mutableListOf("espere", "waiting", "loading", "esperando"))
-        put("KEY_ERROR", mutableListOf("problema", "problem", "error", "null"))
-    }
+    private val logs = MutableLiveData<List<LogMessage>>(emptyList())
 
     private val hasPermissions: Boolean
         get() = ActivityCompat.checkSelfPermission(
             this,
             Manifest.permission.CALL_PHONE,
         ) == PackageManager.PERMISSION_GRANTED
-
-    private val hasPhoneStatePermissions: Boolean
-        get() = ActivityCompat.checkSelfPermission(
-            this,
-            Manifest.permission.READ_PHONE_STATE,
-        ) == PackageManager.PERMISSION_GRANTED
-
-
-    private lateinit var handler: Handler
 
     companion object {
         private const val PORT = 6868
@@ -84,10 +67,33 @@ class MainActivity : AppCompatActivity() {
             }
             routing {
                 post("/ussd") {
-                    val ussdCodeModel = call.receive<UssdCodeModel>()
+                    runCatching {
+                        val ussdCodeModel = call.receive<UssdCodeModel>()
 
-                    val responseMessage = callPhoneNumber(this@MainActivity, ussdCodeModel.code)
-                    call.respondText(responseMessage)
+                        val itemLogs = logs.value.orEmpty().toMutableList()
+                            .apply { add(LogMessage.Normal("POST Request: Code: ${ussdCodeModel.code}")) }
+
+                        logs.postValue(itemLogs)
+                        callPhoneNumber(this@MainActivity, ussdCodeModel.code)
+                    }
+                        .onSuccess { message ->
+                            val logMessage =
+                                "POST Response: ${message.split("\n").joinToString(" ")}"
+                            val itemLogs = logs.value.orEmpty().toMutableList()
+                                .apply {
+                                    add(LogMessage.Success(logMessage))
+                                }
+                            logs.postValue(itemLogs)
+                            call.respondText(message)
+                        }
+                        .onFailure { error ->
+                            val itemLogs = logs.value.orEmpty().toMutableList()
+                                .apply {
+                                    add(LogMessage.Error(error.localizedMessage ?: ""))
+                                }
+                            logs.postValue(itemLogs)
+                            call.respondText(error.localizedMessage)
+                        }
                 }
             }
         }
@@ -98,15 +104,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         findViewById<AppCompatImageView>(R.id.image_logo).animateFlash()
 
-//        startService(Intent(this, PhoneUSSDService::class.java))
-        handler = object : Handler(Looper.getMainLooper()) {
-            override fun handleMessage(msg: Message) {
-                super.handleMessage(msg)
-                Log.e("Message", msg.data.toString())
-            }
-        }
-
-        if (!hasPermissions || !hasPhoneStatePermissions) {
+        if (!hasPermissions) {
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(
@@ -122,6 +120,14 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             server.start(wait = true)
         }
+
+        val adapter = LogAdapter()
+        findViewById<TextView>(R.id.text_status).text = "Server Running: ${getIPAddress()}:$PORT"
+        findViewById<RecyclerView>(R.id.logs_list).adapter = adapter
+
+        logs.observe(this) { itemLogs ->
+            adapter.submitLogs(itemLogs)
+        }
     }
 
     override fun onDestroy() {
@@ -129,13 +135,16 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-}
-
-private fun String.ussdToCallableUri(): Uri? {
-    var uriString: String? = this
-    if (!this.startsWith("tel:")) uriString = "tel:$uriString"
-    for (c in this.toCharArray()) {
-        if (c == '#') uriString += Uri.encode("#") else uriString += c
+    private fun getIPAddress(): String {
+        val wifiInf = (getSystemService(Context.WIFI_SERVICE) as WifiManager).connectionInfo
+        val ipAddress = wifiInf.ipAddress
+        return String.format(
+            "%d.%d.%d.%d",
+            ipAddress and 0xff,
+            ipAddress shr 8 and 0xff,
+            ipAddress shr 16 and 0xff,
+            ipAddress shr 24 and 0xff
+        )
     }
-    return Uri.parse(uriString)
+
 }
