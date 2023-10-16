@@ -145,7 +145,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val adapter = LogAdapter()
-        findViewById<TextView>(R.id.text_status).text = "Server Running: ${getIPAddress()}:$PORT"
+        findViewById<TextView>(R.id.text_status).text =
+            "Server Running: ${getIPAddress()}:$PORT\nMake Post Request to ${getIPAddress()}:$PORT/ussd\n Body: {\n" +
+                    "    \"code\": \"*100#\"\n" +
+                    "}"
         findViewById<RecyclerView>(R.id.logs_list).adapter = adapter
 
         logs.observe(this) { itemLogs ->

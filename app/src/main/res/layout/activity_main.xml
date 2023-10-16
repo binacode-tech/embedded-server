@@ -23,7 +23,7 @@
         android:layout_gravity="start"
         android:gravity="start"
         android:paddingTop="2dp"
-        android:textColor="#fff"
+        android:textColor="@color/table_header_color"
         android:textSize="16sp" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -31,7 +31,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="2"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        android:background="#000" />
+        android:background="#000"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
 </LinearLayout>
