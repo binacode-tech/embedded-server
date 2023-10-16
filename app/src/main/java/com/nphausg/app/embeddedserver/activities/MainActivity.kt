@@ -22,6 +22,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.app.ActivityCompat
 import com.nphausg.app.embeddedserver.R
+import com.nphausg.app.embeddedserver.ServerApplication
+import com.nphausg.app.embeddedserver.USSDCommand
 import com.nphausg.app.embeddedserver.data.models.UssdCodeModel
 import com.nphausg.app.embeddedserver.extensions.animateFlash
 import io.ktor.serialization.kotlinx.json.json
@@ -39,7 +41,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 private const val PERMISSION_REQUEST_CODE = 102
 
@@ -72,48 +73,21 @@ class MainActivity : AppCompatActivity() {
             routing {
                 post("/ussd") {
                     kotlin.runCatching {
-                        val ussdCode = call.receive<UssdCodeModel>()
+                        val ussdCodeModel = call.receive<UssdCodeModel>()
 
-                        //String ussdCode = "*123#";
-                        val intent = Intent(Intent.ACTION_CALL)
-                        intent.data =  Uri.parse("tel:*185#") // ussdCode.code.ussdToCallableUri()
-                        startActivity(intent)
-
-                        println(ussdCode)
-                        val callback = object : TelephonyManager.UssdResponseCallback() {
-                            override fun onReceiveUssdResponse(
-                                telephonyManager: TelephonyManager?,
-                                request: String?,
-                                response: CharSequence?
-                            ) {
-                                super.onReceiveUssdResponse(telephonyManager, request, response)
-                                runBlocking(coroutineContext) {
-                                    call.respondText(response.toString())
-                                }
-                            }
-
-                            override fun onReceiveUssdResponseFailed(
-                                telephonyManager: TelephonyManager?,
-                                request: String?,
-                                failureCode: Int
-                            ) {
-                                super.onReceiveUssdResponseFailed(
-                                    telephonyManager,
-                                    request,
-                                    failureCode
-                                )
-                                runBlocking {
-                                    call.respondText("USSD ($request) Failed with code $failureCode ")
-                                }
-                            }
+                        println(ussdCodeModel)
+                        val ussdCode = ussdCodeModel.code.replace("#", "").trim() + Uri.encode("#")
+                        startActivity(
+                            Intent(Intent.ACTION_CALL, Uri.parse("tel:$ussdCode"))
+                        )
+                        delay(2000)
+                        val commandResponse =
+                            (applicationContext as ServerApplication).command.value
+                        if (commandResponse is USSDCommand.Response) {
+                            call.respondText(commandResponse.message)
                         }
-
-                        if (hasPermissions) {
-                            dialUssdCode(ussdCode.code, callback)
-                            delay(120000)
-                        } else {
-                            call.respondText("No Permission Granted")
-                        }
+//                        delay(120000)
+                        call.respondText("Delay is done get back the results")
                     }.onFailure {
                         call.respondText("${it.localizedMessage} ${it.stackTrace}")
                     }
@@ -126,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         findViewById<AppCompatImageView>(R.id.image_logo).animateFlash()
+        startService(Intent(this, PhoneUSSDService::class.java))
         handler = object : Handler(Looper.getMainLooper()) {
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -170,7 +145,7 @@ class MainActivity : AppCompatActivity() {
 
 private fun String.ussdToCallableUri(): Uri? {
     var uriString: String? = this
-    if (!this.startsWith("tel:"))  uriString = "tel:$uriString"
+    if (!this.startsWith("tel:")) uriString = "tel:$uriString"
     for (c in this.toCharArray()) {
         if (c == '#') uriString += Uri.encode("#") else uriString += c
     }
