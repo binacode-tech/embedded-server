@@ -10,5 +10,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UssdCodeModel(
-    val code: String
+    val code: String,
+    val dataToSend: String? = null
 )

@@ -9,7 +9,6 @@ package com.nphausg.app.embeddedserver.activities
 import android.Manifest
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -22,10 +21,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.app.ActivityCompat
 import com.nphausg.app.embeddedserver.R
-import com.nphausg.app.embeddedserver.ServerApplication
-import com.nphausg.app.embeddedserver.USSDCommand
 import com.nphausg.app.embeddedserver.data.models.UssdCodeModel
 import com.nphausg.app.embeddedserver.extensions.animateFlash
+import com.romellfudi.ussdlibrary.USSDController
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -42,17 +40,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+
 private const val PERMISSION_REQUEST_CODE = 102
 
 
 class MainActivity : AppCompatActivity() {
     private val telephonyManager by lazy { getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager }
+    private val map = HashMap<String, List<String>>().apply {
+        put("KEY_LOGIN", mutableListOf("espere", "waiting", "loading", "esperando"))
+        put("KEY_ERROR", mutableListOf("problema", "problem", "error", "null"))
+    }
 
     private val hasPermissions: Boolean
         get() = ActivityCompat.checkSelfPermission(
             this,
-            Manifest.permission.CALL_PHONE
+            Manifest.permission.CALL_PHONE,
         ) == PackageManager.PERMISSION_GRANTED
+
+    private val hasPhoneStatePermissions: Boolean
+        get() = ActivityCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_PHONE_STATE,
+        ) == PackageManager.PERMISSION_GRANTED
+
 
     private lateinit var handler: Handler
 
@@ -77,17 +87,27 @@ class MainActivity : AppCompatActivity() {
 
                         println(ussdCodeModel)
                         val ussdCode = ussdCodeModel.code.replace("#", "").trim() + Uri.encode("#")
-                        startActivity(
-                            Intent(Intent.ACTION_CALL, Uri.parse("tel:$ussdCode"))
-                        )
-                        delay(2000)
-                        val commandResponse =
-                            (applicationContext as ServerApplication).command.value
-                        if (commandResponse is USSDCommand.Response) {
-                            call.respondText(commandResponse.message)
+                        var responseMessage = ""
+                        if (ussdCodeModel.dataToSend == null) {
+                            USSDController.callUSSDInvoke(this@MainActivity, ussdCode, map, object :
+                                USSDController.CallbackInvoke {
+                                override fun responseInvoke(message: String) {
+                                    responseMessage = message
+                                }
+
+                                override fun over(message: String) {
+                                    responseMessage = message
+                                }
+                            })
+                        } else {
+                            USSDController.send(ussdCodeModel.dataToSend.orEmpty()) { message ->
+                                responseMessage = message
+                            }
                         }
-//                        delay(120000)
-                        call.respondText("Delay is done get back the results")
+
+                        delay(2000)
+
+                        call.respondText(responseMessage)
                     }.onFailure {
                         call.respondText("${it.localizedMessage} ${it.stackTrace}")
                     }
@@ -100,7 +120,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         findViewById<AppCompatImageView>(R.id.image_logo).animateFlash()
-        startService(Intent(this, PhoneUSSDService::class.java))
+
+//        startService(Intent(this, PhoneUSSDService::class.java))
         handler = object : Handler(Looper.getMainLooper()) {
             override fun handleMessage(msg: Message) {
                 super.handleMessage(msg)
@@ -108,10 +129,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (!hasPermissions) {
+        if (!hasPermissions || !hasPhoneStatePermissions) {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(ACCESS_FINE_LOCATION, Manifest.permission.CALL_PHONE),
+                arrayOf(
+                    ACCESS_FINE_LOCATION,
+                    Manifest.permission.CALL_PHONE,
+                    Manifest.permission.READ_PHONE_STATE
+                ),
                 PERMISSION_REQUEST_CODE
             )
         }
