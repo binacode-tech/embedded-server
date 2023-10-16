@@ -24,6 +24,8 @@ import com.nphausg.app.embeddedserver.R
 import com.nphausg.app.embeddedserver.data.models.UssdCodeModel
 import com.nphausg.app.embeddedserver.extensions.animateFlash
 import com.romellfudi.ussdlibrary.USSDController
+import com.romellfudi.ussdlibrary.callPhoneNumber
+import com.romellfudi.ussdlibrary.callSection
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -82,35 +84,10 @@ class MainActivity : AppCompatActivity() {
             }
             routing {
                 post("/ussd") {
-                    kotlin.runCatching {
-                        val ussdCodeModel = call.receive<UssdCodeModel>()
+                    val ussdCodeModel = call.receive<UssdCodeModel>()
 
-                        println(ussdCodeModel)
-                        val ussdCode = ussdCodeModel.code.replace("#", "").trim() + Uri.encode("#")
-                        var responseMessage = ""
-                        if (ussdCodeModel.code.startsWith("*")) {
-                            USSDController.callUSSDInvoke(this@MainActivity, ussdCode, map, object :
-                                USSDController.CallbackInvoke {
-                                override fun responseInvoke(message: String) {
-                                    responseMessage = message
-                                }
-
-                                override fun over(message: String) {
-                                    responseMessage = message
-                                }
-                            })
-                        } else {
-                            USSDController.send(ussdCodeModel.code) { message ->
-                                responseMessage = message
-                            }
-                        }
-
-                        delay(2000)
-
-                        call.respondText(responseMessage)
-                    }.onFailure {
-                        call.respondText("${it.localizedMessage} ${it.stackTrace}")
-                    }
+                    val responseMessage = callPhoneNumber(this@MainActivity, ussdCodeModel.code)
+                    call.respondText(responseMessage)
                 }
             }
         }
@@ -150,20 +127,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         server.stop(1_000, 2_000)
         super.onDestroy()
-    }
-
-
-    private fun dialUssdCode(ussdCode: String, callback: TelephonyManager.UssdResponseCallback) {
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CALL_PHONE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
-
-        telephonyManager.sendUssdRequest(ussdCode, callback, handler)
     }
 
 }

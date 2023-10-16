@@ -41,10 +41,6 @@ public class USSDServiceKT extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         USSDServiceKT.event = event;
         USSDController ussd = USSDController.INSTANCE;
-        Timber.d(String.format(
-                "onAccessibilityEvent: [type] %s [class] %s [package] %s [time] %s [text] %s",
-                event.getEventType(), event.getClassName(), event.getPackageName(),
-                event.getEventTime(), event.getText()));
         if (ussd == null || !ussd.isRunning()) {
             return;
         }
@@ -53,11 +49,11 @@ public class USSDServiceKT extends AccessibilityService {
             // first view or logView, do nothing, pass / FIRST MESSAGE
             clickOnButton(event, 0);
             ussd.stopRunning();
-            ussd.callbackInvoke.over(response);
+            ussd.getCallbackMessage().invoke(response);
         } else if (problemView(event) || LoginView(event)) {
             // deal down
             clickOnButton(event, 1);
-            ussd.callbackInvoke.over(response);
+            ussd.getCallbackMessage().invoke(response);
         } else if (isUSSDWidget(event)) {
             Timber.d("catch a USSD widget/Window");
             if (notInputText(event)) {
@@ -66,7 +62,7 @@ public class USSDServiceKT extends AccessibilityService {
                 Timber.d("No inputText found & closing USSD process");
                 clickOnButton(event, 0);
                 ussd.stopRunning();
-                ussd.callbackInvoke.over(response);
+                ussd.getCallbackMessage().invoke(response);
             } else {
                 // sent option 1
                 if (ussd.getSendType())
